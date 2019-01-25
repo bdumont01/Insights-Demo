@@ -59,7 +59,5 @@
         delay: 10
         timeout: 300
       ignore_errors: true
-    - name: run insights
-      shell: insights-client
-      ignore_errors: true
+
    
