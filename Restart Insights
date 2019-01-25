@@ -1,0 +1,4 @@
+- hosts: all
+- name: run insights
+      shell: insights-client
+      ignore_errors: true
