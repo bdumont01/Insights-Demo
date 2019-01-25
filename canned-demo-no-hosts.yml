@@ -1,118 +1,65 @@
----
-#- hosts: ic1.example.com
-- hosts: ic1.example.com, ic2.example.com, ic3.example.com, ic4.example.com, ic5.example.com, ic6.example.com, ic7.example.com, ic8.example.com, ic9.example.com, sat.example.com
-  vars:
+- hosts: all
     - password: r3dh4t1!
     - insights_needs_reboot: false
     - ssh_conf_bkp: /etc/ssh/sshd_config.backup
   tasks:
-  - block:
-    - name: 'restart katello'
-      shell: katello-service restart
-    #  service:
-    #    name: katello-service
-    #    state: restart
-      register: kat_restarted
-    - name: 'wait for katello service to be online again' 
-      wait_for:
-        host: sat.example.com
-        port: 9200
-        delay: 5
-        msg: "Waiting for Katello service to be back online"
-      ignore_errors: false
-    when: inventory_hostname == 'sat.example.com'
-  - block:
-    - name: 'unregister insights'
-      shell: redhat-access-insights --unregister
+    - name: 'make system vulnerable to payload injection bug'
+      sysctl: name=net.ipv4.tcp_challenge_ack_limit value=100
       ignore_errors: true
-    - name: 'remove insights package'
-      yum:
-        name: redhat-access-insights
-        state: removed
+    - name: 'make system vulnerable to memory corruption or local privilege escalation'
+      sysctl: name=vm.legacy_va_layout value=1
       ignore_errors: true
-    - name: 'erase old insights dir'
-        # shell: rm -rf /etc/redhat-access-insights/
+    - name: 'remove n_hdlc CVE 2017 2636 fix'
+      shell: /bin/rm -f /etc/modprobe.d/disable-n_hdlc.conf
+      ignore_errors: true
+    - name: 'Disable vm.legacy_va_layout in sysctl.conf to make binaries use legacy layout'
+      sysctl:
+        name: "{{item.name}}"
+        value: "{{item.value}}"
+        sysctl_set: yes
+        state: present
+        reload: no
+      with_items:
+       - { name: 'vm.legacy_va_layout', value: '0' }
+      ignore_errors: true
+    - name: 'disable selinux'
+      selinux: policy=targeted state=permissive
+      ignore_errors: true
+    - name: crear fichero
       file:
-        path: /etc/redhat-access-insights/
-        state: absent
+        path: "{{ ssh_conf_bkp }}"
+        state: touch
+        owner: root
+        group: root
+        mode: 0644
       ignore_errors: true
-    - name: 'erase new insights dir'
-    #  shell: rm -rf /etc/redhat-access-insights/
+    - name: 'backup ssh config'
       file:
-        path: /etc/insights-client/
-        state: absent
+        src: /etc/ssh/sshd_config
+        dest: "{{ ssh_conf_bkp }}"
+        state: file
       ignore_errors: true
-    - name: 'forcing getting a new egg'
-      file:
-        path: /var/lib/insights
-        state: absent
+    - name: 'break sshd'
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^KbdInteractiveAuthentication.*'
+        line: 'KbdInteractiveAuthentication yes'
+        state: present
+        create: yes
       ignore_errors: true
-    - name: 'upgrading six version'
-      shell: easy_install --upgrade six
-    when: inventory_hostname != 'sat.example.com'
-  - block:
-    - name: 'register machines to satellite and insights'
-      shell: ./bootstrap.py -l admin -s sat.example.com -o 'EXAMPLE.COM' -L 'Default Location' -g rhel7 -a rhel7 -p r3dh4t1! --force
-      ignore_errors: false
-    when: inventory_hostname != 'sat.example.com'
-  - block:
-      - name: 'make system vulnerable to payload injection bug'
-        sysctl: name=net.ipv4.tcp_challenge_ack_limit value=100
-        ignore_errors: true
-      - name: 'make system vulnerable to memory corruption or local privilege escalation'
-        sysctl: name=vm.legacy_va_layout value=1
-        ignore_errors: true
-      - name: 'remove n_hdlc CVE 2017 2636 fix'
-        shell: /bin/rm -f /etc/modprobe.d/disable-n_hdlc.conf
-        ignore_errors: true
-      - name: 'Disable vm.legacy_va_layout in sysctl.conf to make binaries use legacy layout'
-        sysctl:
-          name: "{{item.name}}"
-          value: "{{item.value}}"
-          sysctl_set: yes
-          state: present
-          reload: no
-        with_items:
-         - { name: 'vm.legacy_va_layout', value: '0' }
-        ignore_errors: true
-      - name: 'disable selinux'
-        selinux: policy=targeted state=permissive
-        ignore_errors: true
-      - name: crear fichero
-        file:
-          path: "{{ ssh_conf_bkp }}"
-          state: touch
-          owner: root
-          group: root
-          mode: 0644
-        ignore_errors: true
-      - name: 'backup ssh config'
-        file:
-          src: /etc/ssh/sshd_config
-          dest: "{{ ssh_conf_bkp }}"
-          state: file
-        ignore_errors: true
-      - name: 'break sshd'
-        lineinfile:
-          path: /etc/ssh/sshd_config
-          regexp: '^KbdInteractiveAuthentication.*'
-          line: 'KbdInteractiveAuthentication yes'
-          state: present
-          create: yes
-        ignore_errors: true
-      - name: Restart machine
-        shell: "sleep 5 && sudo reboot"
-        async: 10
-        poll: 0
-        ignore_errors: true
-      - name: wait for ssh again available.
-        wait_for_connection:
-          connect_timeout: 30
-          sleep: 10
-          delay: 10
-          timeout: 300
-        ignore_errors: true
-      - name: run insights
-        shell: insights-client
-        ignore_errors: true
-    when: inventory_hostname != 'sat.example.com'
+    - name: Restart machine
+      shell: "sleep 5 && sudo reboot"
+      async: 10
+      poll: 0
+      ignore_errors: true
+    - name: wait for ssh again available.
+      wait_for_connection:
+        connect_timeout: 30
+        sleep: 10
+        delay: 10
+        timeout: 300
+      ignore_errors: true
+    - name: run insights
+      shell: insights-client
+      ignore_errors: true
+   
