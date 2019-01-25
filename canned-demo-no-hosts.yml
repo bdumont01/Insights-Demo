@@ -48,7 +48,7 @@
         create: yes
       ignore_errors: true
     - name: Restart machine
-      shell: systemctl reboot
+      shell: "sleep 5 && sudo reboot"
       async: 10
       poll: 0
       ignore_errors: true
