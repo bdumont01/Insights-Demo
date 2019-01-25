@@ -1,4 +1,5 @@
 - hosts: all
+- vars:
     - insights_needs_reboot: false
     - ssh_conf_bkp: /etc/ssh/sshd_config.backup
   tasks:
