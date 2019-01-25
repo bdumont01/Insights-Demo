@@ -37,7 +37,7 @@
       file:
         src: /etc/ssh/sshd_config
         dest: "{{ ssh_conf_bkp }}"
-        state: file
+        state: touch
       ignore_errors: true
     - name: 'break sshd'
       lineinfile:
@@ -48,7 +48,7 @@
         create: yes
       ignore_errors: true
     - name: Restart machine
-      shell: "sleep 5 && sudo reboot"
+      shell: systemctl reboot
       async: 10
       poll: 0
       ignore_errors: true
