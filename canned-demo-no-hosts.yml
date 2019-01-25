@@ -1,5 +1,4 @@
 - hosts: all
-    - password: r3dh4t1!
     - insights_needs_reboot: false
     - ssh_conf_bkp: /etc/ssh/sshd_config.backup
   tasks:
