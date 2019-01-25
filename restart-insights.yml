@@ -1,5 +1,5 @@
 - hosts: all
   tasks:
   - name: run insights
-      shell: insights-client
-      ignore_errors: true
+    shell: insights-client
+    ignore_errors: true
